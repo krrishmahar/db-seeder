@@ -1,0 +1,30 @@
+{
+  "name": "idk_js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:seed": "prisma db seed",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "cross-env": "^10.0.0",
+    "prisma": "^6.15.0",
+    "ts-node": "^10.9.2",
+    "jest": "^30.0.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.15.0"
+  },
+  "prisma": {
+    "seed": "ts-node --esm prisma/seed.ts"
+  }
+}
