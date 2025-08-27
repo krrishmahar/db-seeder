@@ -1,118 +1,121 @@
 import { PrismaClient } from '../lib/generated/prisma/index.js';
 import { faker } from '@faker-js/faker';
+import { 
+  capitalize, 
+  generatePhone, 
+  generateLabImageUrl, 
+  randomCollectionTypes, 
+  randomTestType, 
+  generateTimeSlots 
+} from './helper.ts';
 
 type UserRole = 'LAB' | 'PATIENT';
 type Session = 'MORNING' | 'AFTERNOON' | 'EVENING';
 
 const prisma = new PrismaClient();
 
-function capitalize(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
+async function main() {
+  const count = parseInt(process.argv[2] || '1', 10); // default 1 if not provided
 
-
-
-async function seed() {
   try {
     console.log('Starting seeding process...');
 
-    // Seed Users and Labs
-    console.log('Seeding lab users...');
+    // LAB USERS
     const labUsers = await Promise.all(
-      Array.from({ length: 5 }).map(async () => {
+      Array.from({ length: count }).map(async () => {
         const role: UserRole = 'LAB';
-        const userData = {
-          email: faker.internet.email(),
-          firstName: capitalize(faker.person.firstName()),
-          lastName: capitalize(faker.person.lastName()),
-          phone: faker.phone.number(),
-          role,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        console.log('Creating lab user:', userData);
-        const user = await prisma.user.create({ data: userData });
+        const firstName = capitalize(faker.person.firstName());
+        const lastName = capitalize(faker.person.lastName());
 
-        const labData = {
-          userId: user.id,
-          labLocation: faker.location.streetAddress(),
-          nablCertificateNumber: faker.string.alphanumeric(10),
-          certificateUrl: faker.internet.url(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        console.log('Creating lab:', labData);
-        const lab = await prisma.lab.create({ data: labData });
-
-        const labDetailsData = {
-          labId: lab.id,
-          labName: capitalize(faker.company.name()),
-          collectionTypes: ['Blood', 'Urine', 'Saliva', 'CBC', 'MRI'],
-          experienceYears: faker.number.int({ min: 1, max: 20 }),
-          imageUrl: faker.image.url(),
-          isLoved: faker.datatype.boolean(),
-          latitude: parseFloat(faker.location.latitude().toFixed(6)),
-          longitude: parseFloat(faker.location.longitude().toFixed(6)),
-          nextAvailable: faker.date.soon(),
-          isAvailable: true,
-          rating: faker.number.float({ min: 1, max: 5, fractionDigits: 1 }),
-          testType: faker.helpers.arrayElement(['Pathology', 'Radiology', 'Urine Tests']),
-        };
-        console.log('Creating lab details:', labDetailsData);
-        const labDetails = await prisma.labDetails.create({ data: labDetailsData });
-
-        const timeSlots: { time: string; session: Session }[] = [
-          { time: '09:00', session: 'MORNING' },
-          { time: '12:00', session: 'AFTERNOON' },
-          { time: '15:00', session: 'EVENING' },
-          { time: '18:00', session: 'AFTERNOON' },
-        ];
-
-        console.log('Creating time slots for lab:', lab.id);
-        await prisma.labTimeSlot.createMany({
-          data: timeSlots.map((slot) => ({
-            labId: lab.id,
-            time: slot.time,
-            session: slot.session,
-            isActive: true,
+        const user = await prisma.user.create({
+          data: {
+            email: faker.internet.email({ firstName, lastName }),
+            firstName,
+            lastName,
+            phone: generatePhone(),
+            role,
             createdAt: new Date(),
             updatedAt: new Date(),
+          },
+        });
+
+        const lab = await prisma.lab.create({
+          data: {
+            userId: user.id,
+            labLocation: faker.location.streetAddress(),
+            nablCertificateNumber: faker.string.alphanumeric(10),
+            certificateUrl: faker.internet.url(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        const { category, test } = randomTestType();
+        const labName = capitalize(faker.company.name());
+
+        const labDetails = await prisma.labDetails.create({
+          data: {
+            labId: lab.id,
+            labName,
+            collectionTypes: randomCollectionTypes(),
+            experienceYears: faker.number.int({ min: 1, max: 20 }),
+            imageUrl: generateLabImageUrl(labName),
+            isLoved: faker.datatype.boolean(),
+            latitude: parseFloat(faker.location.latitude().toFixed(6)),
+            longitude: parseFloat(faker.location.longitude().toFixed(6)),
+            nextAvailable: faker.date.soon(), // formatted datetime
+            isAvailable: faker.datatype.boolean(),
+            rating: faker.number.float({ min: 1, max: 5, fractionDigits: 1 }),
+            testType: `${category} - ${test}`, // category + specific test
+          },
+        });
+
+        // Multiple random time slots
+        const timeSlots = await prisma.labTimeSlot.createMany({
+          data: generateTimeSlots().map((slot) => ({
+            ...slot,
+            labId: lab.id,
+            session: slot.session as Session,
           })),
         });
 
-        return { user, lab, labDetails };
+        return { user, lab, labDetails, timeSlots };
       })
     );
 
-    // Seed Patients (optional)
-    console.log('Seeding patient users...');
-    const patientUsers = await Promise.all(
-      Array.from({ length: 5 }).map(async () => {
-        const role: UserRole = 'PATIENT';
-        const userData = {
-          email: faker.internet.email(),
-          firstName: faker.person.firstName(),
-          lastName: faker.person.lastName(),
-          phone: faker.phone.number(),
-          role,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        console.log('Creating patient user:', userData);
-        const user = await prisma.user.create({ data: userData });
+    console.log(`Created lab users-\n ${JSON.stringify(labUsers, null, 3)}`);
 
-        const patientData = {
-          userId: user.id,
-          address: faker.location.streetAddress(),
-          dateOfBirth: faker.date.birthdate(),
-          gender: faker.helpers.arrayElement(['Male', 'Female', 'Other']),
-          latitude: parseFloat(faker.location.latitude().toFixed(6)),
-          longitude: parseFloat(faker.location.longitude().toFixed(6)),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        console.log('Creating patient:', patientData);
-        const patient = await prisma.patient.create({ data: patientData });
+    // PATIENT USERS
+    const patientUsers = await Promise.all(
+      Array.from({ length: count }).map(async () => {
+        const role: UserRole = 'PATIENT';
+        const firstName = capitalize(faker.person.firstName());
+        const lastName = capitalize(faker.person.lastName());
+
+        const user = await prisma.user.create({
+          data: {
+            email: faker.internet.email({ firstName, lastName }),
+            firstName,
+            lastName,
+            phone: generatePhone(),
+            role,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        const patient = await prisma.patient.create({
+          data: {
+            userId: user.id,
+            address: faker.location.streetAddress(),
+            dateOfBirth: faker.date.birthdate(), // formatted date
+            gender: faker.helpers.arrayElement(['Male', 'Female', 'Other']),
+            latitude: parseFloat(faker.location.latitude().toFixed(6)),
+            longitude: parseFloat(faker.location.longitude().toFixed(6)),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
 
         return { user, patient };
       })
@@ -124,18 +127,11 @@ async function seed() {
     throw error;
   } finally {
     await prisma.$disconnect();
-    console.log('Prisma client disconnected');
   }
 }
 
-seed()
-  .then(async() => {
-    console.log('Seeding completed successfully');
-    console.log('Disconnecting Prisma client...');
-    await prisma.$disconnect();
-  })
-  .catch(async(e) => {
-    console.error('Seeding failed:', e);
-    await prisma.$disconnect();
-    // process.exit(1);
-  });
+main().catch(async (e) => {
+  console.error('Seeding failed:', e);
+  await prisma.$disconnect();
+  process.exit(1);
+});
