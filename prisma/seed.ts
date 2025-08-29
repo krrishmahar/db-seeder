@@ -1,6 +1,6 @@
 import { PrismaClient } from "../lib/generated/prisma/index.js";
 import { faker } from "@faker-js/faker";
-import { parseSeedArgs } from "./helper.ts";
+import { parseSeedArgs, randomLocation } from "./helper.ts";
 import {
   capitalize,
   generatePhone,
@@ -14,6 +14,7 @@ type UserRole = "LAB" | "PATIENT";
 type Session = "MORNING" | "AFTERNOON" | "EVENING";
 
 const prisma = new PrismaClient();
+const { latitude, longitude } = randomLocation();
 
 async function main() {
   const { labs, patients } = parseSeedArgs();
@@ -63,8 +64,8 @@ async function main() {
             experienceYears: faker.number.int({ min: 1, max: 20 }),
             imageUrl: generateLabImageUrl(labName),
             isLoved: faker.datatype.boolean(),
-            latitude: parseFloat(faker.location.latitude().toFixed(6)),
-            longitude: parseFloat(faker.location.longitude().toFixed(6)),
+            latitude,
+            longitude,
             nextAvailable: faker.date.soon(), // formatted datetime
             isAvailable: faker.datatype.boolean(),
             rating: faker.number.float({ min: 1, max: 5, fractionDigits: 1 }),
@@ -112,8 +113,8 @@ async function main() {
             address: faker.location.streetAddress(),
             dateOfBirth: faker.date.birthdate(), // formatted date
             gender: faker.helpers.arrayElement(["Male", "Female", "Other"]),
-            latitude: parseFloat(faker.location.latitude().toFixed(6)),
-            longitude: parseFloat(faker.location.longitude().toFixed(6)),
+            latitude,
+            longitude,
             createdAt: new Date(),
             updatedAt: new Date(),
           },

@@ -1,5 +1,7 @@
 import { faker } from '@faker-js/faker';
 import minimist from "minimist";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import maharashtraGeoJSON from "./maharashtra.json" with { type: "json" };
 
 export type SeedArgs = {
   labs: number;
@@ -44,6 +46,40 @@ export function parseSeedArgs(argv: string[] = process.argv.slice(2)): SeedArgs 
   }
 
   return { labs: labsCount, patients: patientsCount };
+}
+
+
+/**
+ * Get a random latitude & longitude inside Maharashtra land polygon
+ */
+export function randomLocation() {
+  const minLat = 15.6;
+  const maxLat = 22.0;
+  const minLng = 72.6;
+  const maxLng = 80.9;
+
+  let latitude: number = 0, longitude: number = 0;
+  let inside = false;
+
+  // Extract the first feature (Maharashtra polygon)
+  const maharashtraPolygon = maharashtraGeoJSON.features[0];
+
+  while (!inside) {
+    latitude = faker.number.float({
+      min: minLat,
+      max: maxLat,
+      fractionDigits: 6,
+    });
+    longitude = faker.number.float({
+      min: minLng,
+      max: maxLng,
+      fractionDigits: 6,
+    });
+
+    inside = booleanPointInPolygon([longitude, latitude], maharashtraPolygon);
+  }
+
+  return { latitude, longitude };
 }
 
 // Helper: Capitalize string

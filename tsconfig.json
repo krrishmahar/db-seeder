@@ -10,11 +10,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true
   },
   "ts-node": {
     "compilerOptions": {
-      "module": "ESNext"
+      "module": "ESNext",
+      "resolveJsonModule": true
     },
     "esm": true
   }
