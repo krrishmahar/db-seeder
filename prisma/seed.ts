@@ -1,5 +1,6 @@
 import { PrismaClient } from "../lib/generated/prisma/index.js";
 import { faker } from "@faker-js/faker";
+import { parseSeedArgs } from "./helper.ts";
 import {
   capitalize,
   generatePhone,
@@ -8,19 +9,6 @@ import {
   randomTestType,
   generateTimeSlots,
 } from "./helper.ts";
-import minimist from "minimist";
-
-// Parse arguments
-const args = minimist(process.argv.slice(2), {
-  alias: {
-    l: "labs",
-    p: "patients",
-  },
-  default: {
-    labs: 1,
-    patients: 1,
-  },
-});
 
 type UserRole = "LAB" | "PATIENT";
 type Session = "MORNING" | "AFTERNOON" | "EVENING";
@@ -28,35 +16,15 @@ type Session = "MORNING" | "AFTERNOON" | "EVENING";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Handle positional args too
-  // Example: `npm run db:seed 1 2` → labs=1, patients=2
-  if (args._.length > 0) {
-    if (args._[0]) args.labs = Number(args._[0]);
-    if (args._[1]) args.patients = Number(args._[1]);
-  }
-
-  // 👇 Adjustment: if user explicitly passed `-l` but not `-p`,
-  // then set patients=0
-  const passedLabs = "l" in args || "labs" in args;
-  const passedPatients = "p" in args || "patients" in args;
-
-  let labsCount = Math.max(0, Number(args.labs));
-  let patientsCount = Math.max(0, Number(args.patients));
-
-  
-  if (passedLabs && !passedPatients) {
-    patientsCount = 0;
-  }
-  
-  console.log(passedLabs, passedPatients)
+  const { labs, patients } = parseSeedArgs();
 
   try {
     console.log("Starting seeding process...");
-    console.log(`Labs: ${labsCount}, Patients: ${patientsCount}`);
+    console.log(`Labs: ${labs}, Patients: ${patients}`);
 
     // LAB USERS
     const labUsers = await Promise.all(
-      Array.from({ length: labsCount }).map(async () => {
+      Array.from({ length: labs }).map(async () => {
         const role: UserRole = "LAB";
         const firstName = capitalize(faker.person.firstName());
         const lastName = capitalize(faker.person.lastName());
@@ -121,7 +89,7 @@ async function main() {
 
     // PATIENT USERS
     const patientUsers = await Promise.all(
-      Array.from({ length: patientsCount }).map(async () => {
+      Array.from({ length: patients }).map(async () => {
         const role: UserRole = "PATIENT";
         const firstName = capitalize(faker.person.firstName());
         const lastName = capitalize(faker.person.lastName());

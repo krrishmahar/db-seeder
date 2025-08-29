@@ -1,4 +1,50 @@
 import { faker } from '@faker-js/faker';
+import minimist from "minimist";
+
+export type SeedArgs = {
+  labs: number;
+  patients: number;
+};
+
+/**
+ * Parse CLI args for seeding labs and patients.
+ * 
+ * Supports:
+ *   -l 2
+ *   -p 3
+ *   --labs 2
+ *   --patients 3
+ *   mixed combinations
+ */
+export function parseSeedArgs(argv: string[] = process.argv.slice(2)): SeedArgs {
+  const args = minimist(argv, {
+    alias: {
+      l: "labs",
+      p: "patients",
+    },
+    default: {
+      labs: 1,
+      patients: 1,
+    },
+  });
+
+  // Detect whether user actually passed a flag
+  const passedLabs = argv.includes("-l") || argv.includes("--labs");
+  const passedPatients = argv.includes("-p") || argv.includes("--patients");
+
+  // Read values
+  let labsCount = parseInt(args.labs as string, 10) || 0;
+  let patientsCount = parseInt(args.patients as string, 10) || 0;
+
+  // If only one flag was passed, zero out the other
+  if (passedLabs && !passedPatients) {
+    patientsCount = 0;
+  } else if (passedPatients && !passedLabs) {
+    labsCount = 0;
+  }
+
+  return { labs: labsCount, patients: patientsCount };
+}
 
 // Helper: Capitalize string
 export function capitalize(word: string): string {
