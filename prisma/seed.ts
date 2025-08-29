@@ -1,29 +1,63 @@
-import { PrismaClient } from '../lib/generated/prisma/index.js';
-import { faker } from '@faker-js/faker';
-import { 
-  capitalize, 
-  generatePhone, 
-  generateLabImageUrl, 
-  randomCollectionTypes, 
-  randomTestType, 
-  generateTimeSlots 
-} from './helper.ts';
+import { PrismaClient } from "../lib/generated/prisma/index.js";
+import { faker } from "@faker-js/faker";
+import {
+  capitalize,
+  generatePhone,
+  generateLabImageUrl,
+  randomCollectionTypes,
+  randomTestType,
+  generateTimeSlots,
+} from "./helper.ts";
+import minimist from "minimist";
 
-type UserRole = 'LAB' | 'PATIENT';
-type Session = 'MORNING' | 'AFTERNOON' | 'EVENING';
+// Parse arguments
+const args = minimist(process.argv.slice(2), {
+  alias: {
+    l: "labs",
+    p: "patients",
+  },
+  default: {
+    labs: 1,
+    patients: 1,
+  },
+});
+
+type UserRole = "LAB" | "PATIENT";
+type Session = "MORNING" | "AFTERNOON" | "EVENING";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const count = parseInt(process.argv[2] || '1', 10); // default 1 if not provided
+  // Handle positional args too
+  // Example: `npm run db:seed 1 2` → labs=1, patients=2
+  if (args._.length > 0) {
+    if (args._[0]) args.labs = Number(args._[0]);
+    if (args._[1]) args.patients = Number(args._[1]);
+  }
+
+  // 👇 Adjustment: if user explicitly passed `-l` but not `-p`,
+  // then set patients=0
+  const passedLabs = "l" in args || "labs" in args;
+  const passedPatients = "p" in args || "patients" in args;
+
+  let labsCount = Math.max(0, Number(args.labs));
+  let patientsCount = Math.max(0, Number(args.patients));
+
+  
+  if (passedLabs && !passedPatients) {
+    patientsCount = 0;
+  }
+  
+  console.log(passedLabs, passedPatients)
 
   try {
-    console.log('Starting seeding process...');
+    console.log("Starting seeding process...");
+    console.log(`Labs: ${labsCount}, Patients: ${patientsCount}`);
 
     // LAB USERS
     const labUsers = await Promise.all(
-      Array.from({ length: count }).map(async () => {
-        const role: UserRole = 'LAB';
+      Array.from({ length: labsCount }).map(async () => {
+        const role: UserRole = "LAB";
         const firstName = capitalize(faker.person.firstName());
         const lastName = capitalize(faker.person.lastName());
 
@@ -83,12 +117,12 @@ async function main() {
       })
     );
 
-    console.log(`Created lab users-\n ${JSON.stringify(labUsers, null, 3)}`);
+    // console.log(`Created lab users-\n ${JSON.stringify(labUsers, null, 3)}`);
 
     // PATIENT USERS
     const patientUsers = await Promise.all(
-      Array.from({ length: count }).map(async () => {
-        const role: UserRole = 'PATIENT';
+      Array.from({ length: patientsCount }).map(async () => {
+        const role: UserRole = "PATIENT";
         const firstName = capitalize(faker.person.firstName());
         const lastName = capitalize(faker.person.lastName());
 
@@ -109,7 +143,7 @@ async function main() {
             userId: user.id,
             address: faker.location.streetAddress(),
             dateOfBirth: faker.date.birthdate(), // formatted date
-            gender: faker.helpers.arrayElement(['Male', 'Female', 'Other']),
+            gender: faker.helpers.arrayElement(["Male", "Female", "Other"]),
             latitude: parseFloat(faker.location.latitude().toFixed(6)),
             longitude: parseFloat(faker.location.longitude().toFixed(6)),
             createdAt: new Date(),
@@ -121,9 +155,12 @@ async function main() {
       })
     );
 
-    console.log('Seeding completed:', { labUsers, patientUsers });
+    console.log("✅ Seeding completed:", {
+      labs: labUsers.length,
+      patients: patientUsers.length,
+    });
   } catch (error) {
-    console.error('Seeding failed:', error);
+    console.error("❌ Seeding failed:", error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -131,7 +168,7 @@ async function main() {
 }
 
 main().catch(async (e) => {
-  console.error('Seeding failed:', e);
+  console.error("Seeding failed:", e);
   await prisma.$disconnect();
   process.exit(1);
 });
