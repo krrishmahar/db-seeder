@@ -14,22 +14,21 @@ type UserRole = "LAB" | "PATIENT";
 type Session = "MORNING" | "AFTERNOON" | "EVENING";
 
 const prisma = new PrismaClient();
-const { latitude, longitude } = randomLocation();
 
 async function main() {
   const { labs, patients } = parseSeedArgs();
-
+  
   try {
     console.log("Starting seeding process...");
     console.log(`Labs: ${labs}, Patients: ${patients}`);
-
+    
     // LAB USERS
     const labUsers = await Promise.all(
       Array.from({ length: labs }).map(async () => {
         const role: UserRole = "LAB";
         const firstName = capitalize(faker.person.firstName());
         const lastName = capitalize(faker.person.lastName());
-
+        
         const user = await prisma.user.create({
           data: {
             email: faker.internet.email({ firstName, lastName }),
@@ -41,7 +40,7 @@ async function main() {
             updatedAt: new Date(),
           },
         });
-
+        
         const lab = await prisma.lab.create({
           data: {
             userId: user.id,
@@ -52,9 +51,10 @@ async function main() {
             updatedAt: new Date(),
           },
         });
-
+        
         const { category, test } = randomTestType();
         const labName = capitalize(faker.company.name());
+        const { latitude, longitude } = randomLocation(); // ✅ call per lab
 
         const labDetails = await prisma.labDetails.create({
           data: {
@@ -72,7 +72,7 @@ async function main() {
             testType: `${category} - ${test}`, // category + specific test
           },
         });
-
+        
         // Multiple random time slots
         const timeSlots = await prisma.labTimeSlot.createMany({
           data: generateTimeSlots().map((slot) => ({
@@ -82,6 +82,7 @@ async function main() {
           })),
         });
 
+        console.log(labDetails.latitude, labDetails.longitude);
         return { user, lab, labDetails, timeSlots };
       })
     );
@@ -94,6 +95,7 @@ async function main() {
         const role: UserRole = "PATIENT";
         const firstName = capitalize(faker.person.firstName());
         const lastName = capitalize(faker.person.lastName());
+        const { latitude, longitude } = randomLocation();
 
         const user = await prisma.user.create({
           data: {
